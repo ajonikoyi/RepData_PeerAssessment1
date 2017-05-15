@@ -1,0 +1,152 @@
+---
+title: "Reproducible research project"
+output:
+  html_document: default
+  word_document: default
+---
+
+## Activity monitoring data
+
+This is an R Markdown document created to provide the reader with the code and guide to processing the activity data set. This data set was provided in a **csv** format that was loaded into R and saved as **activity_file** using the following commands 
+
+
+```{r load,echo=TRUE}
+setwd("c:/misc/data science")
+active_file<-read.csv("activity.csv")
+
+```
+
+## Loading required packages
+
+To start, we load the required package, dplyr, for the data analysis
+```{r loadpackage, echo=TRUE}
+library(dplyr)
+```
+## Preparing data
+
+With the data loaded, we can begin the processing steps. First, convert the 'date' variable to date format. We can the apply the efficient **group_by** and **summarize** functions.
+```{r prep1, echo=TRUE}
+active_file$date<-as.Date(active_file$date)
+active_date<-group_by(active_file,date)
+ggg<-summarize(active_date,total=sum(steps),avrg=mean(steps,na.rm=TRUE),maxi=max(steps),mini=min(steps))
+
+head(active_file)
+head(ggg)
+```
+
+
+Note that the total steps on 2012-10-01 shows as NA. As shown below, if na.rm=TRUE is used, the total is zero.
+```{r prep2, echo=TRUE}
+
+ggg2<-summarize(active_date,total=sum(steps,na.rm=TRUE),avrg=mean(steps,na.rm=TRUE),maxi=max(steps,na.rm=TRUE),mini=min(steps,na.rm=TRUE))
+
+head(ggg2)
+```
+
+## Mean total number of steps
+
+Below is a histogram showing the total number of steps per day (on the x-axis), and how many days (on y-axis) that occured. The mean, median, and maximun total number of steps taken a day are also shown below.
+
+```{r plot1, echo=TRUE}
+
+hist(ggg2$total,col="red")
+mean(ggg2$total,na.rm=TRUE)
+median(ggg2$total,na.rm=TRUE)
+max(ggg2$total,na.rm=TRUE)
+```
+
+## Average daily activity pattern
+
+Rather than grouping by date, we can group the data by the 5 minute intervals using the following code.Here, we have plotted a graph of the average number of steps at a given interval (on y-axis), against the corresponding interval (on the x-axis). Also shown below is the interval with the maximum mean total number of steps. This was determined by first ordering the data in descending order of the average number of steps
+
+```{r plot2, echo=TRUE}
+
+t_series<-group_by(active_file,interval)
+t_seriesdata<-summarize(t_series,avg_at_interval=mean(steps,na.rm=TRUE))
+with(t_seriesdata,plot(interval,avg_at_interval,type="l"))
+
+ordered_data<-arrange(t_seriesdata,desc(avg_at_interval))
+head(ordered_data)
+max_interval<-as.numeric(ordered_data[1,1])
+max_interval
+
+```
+
+
+
+##IMPUTING MISSING VALs
+
+In this section, we are interested in filling the missing values with appropriate values. To start with, we want to know how many missing values are in the **steps** column:
+
+```{r missingtotal, echo=TRUE}
+
+sum(is.na(active_file[,1]))
+
+```
+
+Rather than ignoring the NAs as we did previously, we will replace the NAs with the daily average (averaged over the 7 days of a week) at the given interval. This is done using a 'for loop'. Displayed below are the first few rows and last few rows of the modified data.
+
+```{r missing2, echo=TRUE}
+
+
+for(i in 1:length(active_file$interval)){
+	inte<-active_file[i,3]
+	if(is.na(active_file[i,1])){active_file[i,1]<-t_seriesdata[t_seriesdata$interval==inte,2]
+	}
+}
+head(active_file)
+tail(active_file)
+```
+
+Now, we determine the statistics as we did previously:
+
+```{r plot3, echo=TRUE}
+active_date2<-group_by(active_file,date)
+ggg3<-summarize(active_date2,total=sum(steps),avrg=mean(steps,na.rm=TRUE),maxi=max(steps),mini=min(steps))
+
+hist(ggg3$total,col="red")
+mean(ggg3$total,na.rm=TRUE)
+median(ggg3$total,na.rm=TRUE)
+max(ggg3$total,na.rm=TRUE)
+```
+
+Clearly, this process has a desirable effect of creating a histogram that is more bell-shaped. The mean now coincides with the median. Whereas, without the NAs replaced, the mean was lower than the median.
+
+
+## Weekday and Weekend activity
+
+In this section, we are interested in determining the statistics of the steps taken during the weekdays, and compare them with weekends. To start, we create a new variable **wkday**, which shows the day of the week (i.e. Monday, Tuesday, e.t.c). We then create a factor variable with two levels, **wkday** and **wkend**, corresponding to days that fall on a weekday or a weekend, respectively. 
+```{r dayofweek, echo=TRUE}
+
+act_fileday<-mutate(active_file,wkday=weekdays(date))
+
+data_part3<-mutate(act_fileday,facto=factor(wkday=="Saturday"|wkday=="sunday",labels=c("wkday","wkend")))
+head(data_part3)
+```
+
+We can determine the statistics for weekdays separate from weekends as follows:
+```{r separated2, echo=TRUE}
+
+desireddata<-group_by(data_part3,interval,facto)
+desireddata2<-summarize(desireddata,avgint=mean(steps))
+head(desireddata2)
+```
+
+To create the final plot to show this separate statistics, first load the **lattice** package and apply the **xyplot** function as follows:
+```{r plot4, echo=TRUE}
+library(lattice)
+xyplot(avgint~interval|facto,data=desireddata2,layout=c(1,2),type="l")
+```
+
+```{r plotlater, echo=TRUE}
+
+t_series<-group_by(active_file,interval)
+t_seriesdata<-summarize(t_series,avg_at_interval=mean(steps,na.rm=TRUE))
+with(t_seriesdata,plot(interval,avg_at_interval,type="l"))
+max_interval<-t_seriesdata[max(t_seriesdata$avg_at_interval),1]
+max_interval
+ordered_data<-arrange(t_seriesdata,desc(avg_at_interval))
+head(ordered_data)
+as.numeric(ordered_data[1,1])
+
+```
