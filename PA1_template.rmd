@@ -138,16 +138,3 @@ To create the final plot to show this separate statistics, first load the **latt
 library(lattice)
 xyplot(avgint~interval|facto,data=desireddata2,layout=c(1,2),type="l")
 ```
-
-```{r plotlater, echo=TRUE}
-
-t_series<-group_by(active_file,interval)
-t_seriesdata<-summarize(t_series,avg_at_interval=mean(steps,na.rm=TRUE))
-with(t_seriesdata,plot(interval,avg_at_interval,type="l"))
-max_interval<-t_seriesdata[max(t_seriesdata$avg_at_interval),1]
-max_interval
-ordered_data<-arrange(t_seriesdata,desc(avg_at_interval))
-head(ordered_data)
-as.numeric(ordered_data[1,1])
-
-```
